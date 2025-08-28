@@ -21,18 +21,19 @@ function extractJSON(text: string): any {
 
 export async function POST(req: NextRequest) {
   try {
-    const { inn } = await req.json();
-    if (!inn) return NextResponse.json({ error: "Missing INN" }, { status: 400 });
-
+    const { inn, companyName = "", region = "", sourceDomain = "" } = await req.json();
+if (!inn) return NextResponse.json({ error: "Missing INN" }, { status: 400 });
+    
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const model = process.env.OPENAI_MODEL || "gpt-5-mini";
 
-    const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснений.
-Работаем ТОЛЬКО по компании с ИНН ${inn}. ИГНОРИРУЙ одноимённые компании с иным ИНН.
-Включай только персон, чьи источники:
+const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснений.
+Компания: ИНН ${inn}${companyName ? `, название "${companyName}"` : ""}${region ? `, регион "${region}"` : ""}.
+ВКЛЮЧАЙ только персон, чьи источники:
   – НА СТРАНИЦЕ явно содержат тот же ИНН ${inn}; ИЛИ
-  – размещены в реестрах: egrul.nalog.ru, nalog.ru, companies.rbc.ru, rusprofile.ru, sbis.ru, kontur.ru, spark-interfax.ru, или на официальном сайте компании.
-Верни 3–6 записей (короткие поля); по каждой до 2 источников:
+  – ${sourceDomain ? `размещены на официальном домене ${sourceDomain} ИЛИ ` : ""}в реестрах: egrul.nalog.ru, nalog.ru, companies.rbc.ru, rusprofile.ru, sbis.ru, kontur.ru, spark-interfax.ru.
+ИГНОРИРУЙ одноимённые компании с иным ИНН.
+Верни 3–6 записей; для каждой до 2 источников.
 {"people":[{"full_name":"...","role_title":"...","sources":[{"label":"...","url":"https://...","date":"YYYY-MM-DD"}]}]}`;
 
     const resp = await client.responses.create({
