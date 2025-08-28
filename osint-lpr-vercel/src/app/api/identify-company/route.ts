@@ -18,48 +18,44 @@ function extractJSON(text: string): any {
   return {};
 }
 
-type Candidate = { name:string; region?:string; okved?:string; inn?:string; source:string };
-
 export async function POST(req: NextRequest) {
   try {
     const { mode, query } = await req.json();
     if (!query || !["name","inn"].includes(mode)) {
       return NextResponse.json({ error: "Bad request" }, { status: 400 });
     }
-
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснений. Никакого Markdown и текста вне JSON.
 
-Схема:
-{"candidates":[{"name":"","region":"","okved":"","inn":"","source":""}]}
+Если ввод — ИНН: проверь карточку компании в открытых источниках (официальные/уважаемые) и верни до 1 кандидата.
+Если ввод — НАЗВАНИЕ: найди 3–8 кандидатов.
+Для каждого кандидата дай поля:
+- name (строка), region (строка или пусто), okved (строка или пусто), inn (строка, если видишь), source (URL карточки).
+Структура ответа:
+{ "candidates": [ { "name": "...", "region": "...", "okved": "...", "inn": "...", "source": "https://..." } ] }`;
 
-Инструкции:
-- Если ввод — ИНН: верни максимум одного кандидата (точное совпадение).
-- Если ввод — название: верни 3–8 кандидатов.
-- Источники: официальные/уважаемые (ЕГРЮЛ/Прозрачный бизнес, корпоративные сайты, Rusprofile и т.п.).
-- Поля:
-  - name (обязательно)
-  - inn (если известен)
-  - region (если виден)
-  - okved (если виден)
-  - source (ссылка на карточку — обязательно)
+    async function call(withTool: boolean) {
+      const resp = await client.responses.create({
+        model: "gpt-5",
+        input: `${prompt}\n\nРежим: ${mode}. Запрос: ${query}`,
+        tools: withTool ? [{ type: "web_search_preview" }] : undefined,
+      });
+      const text = resp.output_text || "{}";
+      const data: any = extractJSON(text);
+      return { data, text };
+    }
 
-Ввод:
-mode=${"${mode}"}
-query=${"${query}"}
-`;
+    let out = await call(true);
+    if (!out.data?.candidates || !Array.isArray(out.data.candidates)) {
+      const fallback = await call(false);
+      if ((fallback.data?.candidates || []).length > 0) out = fallback;
+    }
 
-    const resp = await client.responses.create({
-      model: "gpt-5",
-      input: prompt,
-      tools: [{ type: "web_search_preview" }],
+    return NextResponse.json({
+      candidates: out.data?.candidates || [],
+      debugText: `identify-company raw output:\n${out.text.slice(0, 4000)}`
     });
-
-    const text = resp.output_text || "{}";
-    const data: any = extractJSON(text);
-    const out: { candidates: Candidate[] } = { candidates: Array.isArray(data?.candidates) ? data.candidates : [] };
-    return NextResponse.json(out);
   } catch (e:any) {
     console.error(e);
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });

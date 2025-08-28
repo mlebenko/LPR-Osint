@@ -17,11 +17,13 @@ export default function Page() {
   const [selectedPeopleIdx, setSelectedPeopleIdx] = useState<number[]>([]);
 
   const [productInfo, setProductInfo] = useState("");
-
   const [profilesMd, setProfilesMd] = useState<string>("");
 
+  const [debugText, setDebugText] = useState<string>("");
+  const [showDebug, setShowDebug] = useState(false);
+
   async function identifyCompany() {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setCandidates([]); setPeople([]); setSelectedInn(null); setProfilesMd("");
     try {
       const res = await fetch("/api/identify-company", {
         method: "POST",
@@ -31,13 +33,23 @@ export default function Page() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setCandidates(data.candidates || []);
+      setDebugText(data.debugText || "");
+      const only = (data.candidates && data.candidates.length === 1) ? data.candidates[0] : null;
+      if (mode === "inn") {
+        const innFromInput = query.trim();
+        const inn = (only?.inn?.trim() || innFromInput);
+        if (inn) {
+          setSelectedInn(inn);
+          await findPeople(inn);
+        }
+      }
     } catch (e:any) {
       setError(e.message || "Ошибка");
     } finally { setLoading(false); }
   }
 
   async function findPeople(inn: string) {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setPeople([]);
     try {
       const res = await fetch("/api/find-lpr", {
         method: "POST",
@@ -47,13 +59,14 @@ export default function Page() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setPeople(data.people || []);
+      setDebugText((prev)=> (prev ? prev + "\n\n" : "") + (data.debugText || ""));
     } catch (e:any) {
       setError(e.message || "Ошибка");
     } finally { setLoading(false); }
   }
 
   async function makeProfiles() {
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setProfilesMd("");
     try {
       const chosen = selectedPeopleIdx.map(i => people[i]);
       const res = await fetch("/api/persona", {
@@ -64,6 +77,7 @@ export default function Page() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setProfilesMd(data.markdown || "");
+      setDebugText((prev)=> (prev ? prev + "\n\n" : "") + (data.debugText || ""));
     } catch (e:any) {
       setError(e.message || "Ошибка");
     } finally { setLoading(false); }
@@ -117,6 +131,10 @@ export default function Page() {
             </table>
           </div>
         )}
+
+        {candidates.length===0 && !loading && (
+          <p style={{marginTop:8, opacity:.8}}>Ничего не нашли? Если вы вводили ИНН — попробую перейти к шагу 2 напрямую.</p>
+        )}
       </section>
 
       {/* Step 2 */}
@@ -142,7 +160,7 @@ export default function Page() {
                       <div>
                         <div style={{fontWeight:600}}>{p.full_name} — {p.role_title}</div>
                         <div style={{fontSize:13, opacity:.8}}>
-                          Источники: {p.sources.map((s, j)=>(<a key={j} href={s.url} target="_blank" rel="noreferrer" style={{marginRight:6}}>[{s.label}]</a>))}
+                          Источники: {p.sources.map((s, j)=>(<a key={j} href={s.url} target="_blank" rel="noreferrer" style={{marginRight:6}}>[{s.label || 'источник'}]</a>))}
                         </div>
                       </div>
                     </label>
@@ -167,6 +185,14 @@ export default function Page() {
         </section>
       )}
 
+      {/* Debug */}
+      <details style={{marginBottom:12}} open={showDebug} onToggle={(e)=>setShowDebug((e.target as HTMLDetailsElement).open)}>
+        <summary style={{cursor:"pointer"}}>Показать технические детали</summary>
+        <pre style={{whiteSpace:"pre-wrap", background:"#0b1220", color:"#e2e8f0", padding:12, borderRadius:10, marginTop:8}}>
+{debugText || "Логи появятся после первого запроса."}
+        </pre>
+      </details>
+
       {/* Step 3 */}
       {profilesMd && (
         <section style={{background:"#fff", padding:16, borderRadius:14, boxShadow:"0 1px 2px rgba(0,0,0,0.06)", whiteSpace:"pre-wrap"}}>
@@ -188,7 +214,6 @@ const smallBtnStyle: React.CSSProperties = {
   padding:"6px 10px", borderRadius:8, cursor:"pointer"
 };
 
-// ultra-light Markdown -> HTML (headings, bold, links, list)
 function mdToHtml(md: string) {
   return md
     .replace(/^### (.*$)/gim, "<h3>$1</h3>")
