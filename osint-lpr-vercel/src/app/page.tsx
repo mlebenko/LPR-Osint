@@ -370,19 +370,16 @@ function AvatarLetter({ name }: { name: string }) { const letter=(name||"?").tri
 function Icon({ name, size=20 }: { name: string; size?: number }) { return <span className="material-symbols-outlined" style={{ fontSize:size, lineHeight:1, verticalAlign:"-4px" }}>{name}</span>; }
 function DetailPanel({ person, html }: { person: Person; html: string | null }) {
   return (
-    <div style={{ display:"grid", gap:10 }}>
-      <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
-        <AvatarLetter name={person.full_name} />
-        <div style={{ display:"grid", gap:2 }}>
-          <div style={{ fontWeight:800, fontSize:18 }}>{person.full_name}</div>
-          <div style={{ opacity:.8 }}>{person.role_title}</div>
-        </div>
+    <div style={{ display: "grid", gap: 10 }}>
+      {/* ... */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {person.sources?.slice(0, 3).map((s, i) => (
+          <a key={i} href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 13 }}>
+            {s.label || domainFromUrl(s.url)}   {/* ← теперь символ существует */}
+          </a>
+        ))}
       </div>
-      <BlockTitle><Icon name="link" /> Источники</BlockTitle>
-      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-        {person.sources?.slice(0,5).map((s,i)=>(<a key={i} href={s.url} target="_blank" rel="noreferrer" style={chip}>{s.label || domainFromUrl(s.url)}</a>))}
-      </div>
-      {html ? (<div dangerouslySetInnerHTML={{ __html: html }} />) : (<div style={{ opacity:.8 }}>Карточка появится после генерации портретов.</div>)}
+      {/* ... */}
     </div>
   );
 }
