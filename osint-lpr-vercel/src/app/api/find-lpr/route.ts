@@ -40,7 +40,7 @@ const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснен�
       model,
       input: prompt,
       tools: [{ type: "web_search_preview" }],
-      max_output_tokens: 600
+      max_output_tokens: 800
     });
 
     const text = resp.output_text || "{}";
