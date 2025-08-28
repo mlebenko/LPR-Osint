@@ -105,21 +105,34 @@ export default function Page() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setCandidates(data.candidates || []);
-      if (data.debugText) setDebugText(data.debugText);
+// --- режим ИНН
+if (mode === "inn") {
+  const innFromInput = query.trim();
+  const inn = (data.candidates?.[0]?.inn?.trim() || innFromInput);
+  if (inn) {
+    setSelectedInn(inn);
+    setStep(2);           // показываем шаг 2
+    await findPeople(inn); // и сразу грузим ЛПР по ИНН
+    return;
+  }
+  // если не нашли — остаёмся на шаге 1 с понятной ошибкой
+  setError("По этому ИНН ничего не найдено. Проверьте ввод.");
+  setStep(1);
+  return;
+}
 
-      if (mode === "inn") {
-        const innFromInput = query.trim();
-        const inn = (data.candidates?.[0]?.inn?.trim() || innFromInput);
-        if (inn) {
-          setSelectedInn(inn);
-          setStep(2);
-          await findPeople(inn);
-          return;
-        }
-      }
+// --- режим НАЗВАНИЕ: показываем меню выбора ТОЛЬКО если есть кандидаты
+const list = data.candidates || [];
+if (list.length === 0) {
+  setError("По названию ничего не найдено. Уточните запрос.");
+  setStep(1);
+  return;
+}
 
-      // Если несколько кандидатов — остаёмся на шаге выбора (Шаг 2 по макету 2)
-      setStep(2);
+setSelectedCandidateIdx(0); // можно предвыбрать первый
+setStep(2);                 // ждём подтверждения и НЕ вызываем findPeople()
+
+
     } catch (e: any) {
       setError(e?.message || "Ошибка запроса");
     } finally {
@@ -281,6 +294,7 @@ export default function Page() {
           )}
 
           {/* Блок ЛПР/ЛВПР (карточки) */}
+          {selectedInn && (
           <section style={card}>
             <h2 style={h2}>ЛПР/ЛВПР компании {selectedInn ? `с ИНН ${selectedInn}` : "(выберите компанию)"}</h2>
 
@@ -350,6 +364,7 @@ export default function Page() {
               </div>
             </div>
           </section>
+          )}
 
           {/* Двухколоночный блок: слева список, справа «Детальная информация» */}
           <section style={{ ...card, display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 16 }}>
