@@ -34,7 +34,6 @@ ${"${productInfo}"}
     const resp = await client.responses.create({
       model,
       input: prompt,
-      temperature: 0.3,
       max_output_tokens: 800
     });
 
