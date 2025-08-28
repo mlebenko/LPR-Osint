@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     async function call(withTool: boolean) {
       const resp = await client.responses.create({
-        model: "gpt-5",
+        model: "gpt-5-mini",
         input: `${prompt}\n\nРежим: ${mode}. Запрос: ${query}`,
         tools: withTool ? [{ type: "web_search_preview" }] : undefined,
       });
