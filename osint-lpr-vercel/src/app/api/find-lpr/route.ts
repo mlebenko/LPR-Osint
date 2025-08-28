@@ -39,7 +39,6 @@ export async function POST(req: NextRequest) {
       model,
       input: prompt,
       tools: [{ type: "web_search_preview" }],
-      temperature: 0.2,
       max_output_tokens: 600
     });
 
