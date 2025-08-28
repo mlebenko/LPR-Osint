@@ -140,31 +140,32 @@ setStep(2);                 // ждём подтверждения и НЕ вы�
     }
   }
 
-  async function findPeople(inn: string) {
-    setLoading(true);
-    setError(null);
-    setPeople([]);
-    setSelectedPeopleIdx([]);
-    setActivePersonIdx(null);
-    setProfilesMd("");
+  async function findPeople(params: { inn: string; companyName?: string; region?: string; sourceDomain?: string }) {
+  const { inn, companyName = "", region = "", sourceDomain = "" } = params;
+  setLoading(true);
+  setError(null);
+  setPeople([]);
+  setSelectedPeopleIdx([]);
+  setActivePersonIdx(null);
+  setProfilesMd("");
 
-    try {
-      const res = await fetch("/api/find-lpr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inn }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setPeople(data.people || []);
-      if (data.debugText) setDebugText((prev) => (prev ? prev + "\n\n" : "") + data.debugText);
-      setStep(2); // по макету список ЛПР показываем на шаге 2
-    } catch (e: any) {
-      setError(e?.message || "Ошибка запроса");
-    } finally {
-      setLoading(false);
-    }
+  try {
+    const res = await fetch("/api/find-lpr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inn, companyName, region, sourceDomain }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    setPeople(data.people || []);
+    if (data.debugText) setDebugText((prev) => (prev ? prev + "\n\n" : "") + data.debugText);
+    setStep(2);
+  } catch (e: any) {
+    setError(e?.message || "Ошибка запроса");
+  } finally {
+    setLoading(false);
   }
+}
 
   async function makeProfiles() {
     setLoading(true);
@@ -279,12 +280,16 @@ setStep(2);                 // ждём подтверждения и НЕ вы�
                 <button
                   style={primary}
                   disabled={selectedCandidateIdx === null || loading}
-                  onClick={() => {
-                    if (selectedCandidateIdx === null) return;
-                    const chosen = candidates[selectedCandidateIdx];
-                    setSelectedInn(chosen.inn);
-                    findPeople(chosen.inn);
-                  }}
+onClick={() => {
+  if (selectedCandidateIdx === null) return;
+  const chosen = candidates[selectedCandidateIdx];
+  setSelectedInn(chosen.inn);
+  findPeople({
+    inn: chosen.inn,
+    companyName: chosen.name,
+    region: chosen.region || "",
+    sourceDomain: domainFromUrl(chosen.source),
+  });
                 >
                   Продолжить
                 </button>
