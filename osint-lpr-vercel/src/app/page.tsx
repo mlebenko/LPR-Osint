@@ -6,10 +6,17 @@ export type Person = { full_name: string; role_title: string; sources: { label?:
 
 type Screen = "s1-input" | "s1-choose" | "s2-people" | "s3-profiles";
 
-// ---- helper available module-wide
+// helpers (module-scope) — доступны и в Page, и в DetailPanel
 function domainFromUrl(url?: string) {
-  try { if (!url) return "—"; const u = new URL(url); return u.hostname.replace(/^www\./, ""); } catch { return url || "—"; }
+  try {
+    if (!url) return "—";
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, "");
+  } catch {
+    return url || "—";
+  }
 }
+
 // light MD to HTML (for already validated text)
 function mdToHtml(md: string) {
   return md
