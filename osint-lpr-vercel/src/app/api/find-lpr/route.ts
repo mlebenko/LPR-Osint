@@ -18,8 +18,6 @@ function extractJSON(text: string): any {
   return {};
 }
 
-type Person = { full_name:string; role_title:string; sources:{label?:string; url:string; date?:string}[] };
-
 export async function POST(req: NextRequest) {
   try {
     const { inn } = await req.json();
@@ -27,26 +25,34 @@ export async function POST(req: NextRequest) {
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснений. Никакого Markdown и текста вне JSON.
+    const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснений. Никакого Markdown.
+Найди 3–10 руководителей/ЛПР для компании с ИНН ${inn}.
+Приоритет: гендиректор/директор/президент/предсовета, коммерческий директор, директор по закупкам, директор по развитию, CFO, CTO, учредитель/собственник/бенефициар.
+Верни структуру:
+{ "people": [ { "full_name": "...", "role_title": "...", "sources": [ { "label":"...", "url":"https://...", "date":"YYYY-MM-DD" } ] } ] }
+Используй только публичные источники (сайт компании/ЕГРЮЛ/топ-СМИ/агрегаторы).`;
 
-Схема:
-{"people":[{"full_name":"","role_title":"","sources":[{"label":"","url":"","date":""}]}]}
+    async function call(withTool: boolean) {
+      const resp = await client.responses.create({
+        model: "gpt-5",
+        input: prompt,
+        tools: withTool ? [{ type: "web_search_preview" }] : undefined,
+      });
+      const text = resp.output_text || "{}";
+      const data: any = extractJSON(text);
+      return { data, text };
+    }
 
-Задача:
-- Найди 3–10 руководителей/ЛПР для компании с ИНН ${"${inn}"}.
-Приоритет: генеральный директор/директор/президент/предсовета, коммерческий директор, директор по закупкам, директор по развитию, CFO, CTO, учредитель/собственник/бенефициар.
-Для каждого верни: full_name, role_title, sources[{label,url,date}] с публичных источников (сайт компании/ЕГРЮЛ/топ-СМИ/агрегаторы).`;
+    let out = await call(true);
+    if (!out.data?.people || !Array.isArray(out.data.people)) {
+      const fallback = await call(false);
+      if ((fallback.data?.people || []).length > 0) out = fallback;
+    }
 
-    const resp = await client.responses.create({
-      model: "gpt-5",
-      input: prompt,
-      tools: [{ type: "web_search_preview" }],
+    return NextResponse.json({
+      people: out.data?.people || [],
+      debugText: `find-lpr raw output:\n${out.text.slice(0, 4000)}`
     });
-
-    const text = resp.output_text || "{}";
-    const data: any = extractJSON(text);
-    const out: { people: Person[] } = { people: Array.isArray(data?.people) ? data.people : [] };
-    return NextResponse.json(out);
   } catch (e:any) {
     console.error(e);
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });

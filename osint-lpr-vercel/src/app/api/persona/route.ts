@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     const prompt = `Собери короткие customer profiles (портреты) для следующих персон:
-${"${JSON.stringify(people, null, 2)}"}
+${JSON.stringify(people, null, 2)}
 
 Контекст о нашем продукте/компании:
-${"${productInfo || '(не указан)'}"}
+${productInfo || '(не указан)'}
 
 Правила:
 - ТОЛЬКО публичные данные, обязательно добавляй ссылку и дату для важных утверждений.
@@ -31,14 +31,26 @@ ${"${productInfo || '(не указан)'}"}
 - Ничего не выдумывай. Если чего-то не хватает — отметь needs_review.
 `;
 
-    const resp = await client.responses.create({
-      model: "gpt-5",
-      input: prompt,
-      tools: [{ type: "web_search_preview" }],
-    });
+    async function call(withTool: boolean) {
+      const resp = await client.responses.create({
+        model: "gpt-5",
+        input: prompt,
+        tools: withTool ? [{ type: "web_search_preview" }] : undefined,
+      });
+      const text = resp.output_text || "";
+      return { text };
+    }
 
-    const markdown = resp.output_text || "";
-    return NextResponse.json({ markdown });
+    let out = await call(true);
+    if (!out.text || out.text.trim().length === 0) {
+      const fallback = await call(false);
+      if (fallback.text) out = fallback;
+    }
+
+    return NextResponse.json({
+      markdown: out.text || "",
+      debugText: `persona raw output:\n${(out.text || '').slice(0, 4000)}`
+    });
   } catch (e:any) {
     console.error(e);
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
