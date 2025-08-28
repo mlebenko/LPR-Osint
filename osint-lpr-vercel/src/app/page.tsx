@@ -278,21 +278,22 @@ setStep(2);                 // ждём подтверждения и НЕ вы�
 
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <button
-                  style={primary}
-                  disabled={selectedCandidateIdx === null || loading}
-onClick={() => {
-  if (selectedCandidateIdx === null) return;
-  const chosen = candidates[selectedCandidateIdx];
-  setSelectedInn(chosen.inn);
-  findPeople({
-    inn: chosen.inn,
-    companyName: chosen.name,
-    region: chosen.region || "",
-    sourceDomain: domainFromUrl(chosen.source),
-  });
-                >
-                  Продолжить
-                </button>
+  style={primary}
+  disabled={selectedCandidateIdx === null || loading}
+  onClick={() => {
+    if (selectedCandidateIdx === null) return;
+    const chosen = candidates[selectedCandidateIdx];
+    setSelectedInn(chosen.inn);
+    findPeople({
+      inn: chosen.inn,
+      companyName: chosen.name,
+      region: chosen.region || "",
+      sourceDomain: domainFromUrl(chosen.source),
+    });
+  }}
+>
+  Продолжить
+</button>
                 <button style={ghost} onClick={resetAll}>Новый поиск</button>
               </div>
             </section>
