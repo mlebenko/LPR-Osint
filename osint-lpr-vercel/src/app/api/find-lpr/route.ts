@@ -20,17 +20,19 @@ function extractJSON(text: string): any {
 
 export async function POST(req: NextRequest) {
   try {
-    const { inn } = await req.json();
+    const { inn, companyName = "", region = "", sourceDomain = "" } = await req.json();
     if (!inn) return NextResponse.json({ error: "Missing INN" }, { status: 400 });
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснений. Никакого Markdown.
-Найди 3–10 руководителей/ЛПР для компании с ИНН ${inn}.
-Приоритет: гендиректор/директор/президент/предсовета, коммерческий директор, директор по закупкам, директор по развитию, CFO, CTO, учредитель/собственник/бенефициар.
-Верни структуру:
-{ "people": [ { "full_name": "...", "role_title": "...", "sources": [ { "label":"...", "url":"https://...", "date":"YYYY-MM-DD" } ] } ] }
-Используй только публичные источники (сайт компании/ЕГРЮЛ/топ-СМИ/агрегаторы).`;
+const prompt = `СТРОГО ВЕРНИ ТОЛЬКО JSON без пояснений.
+Компания: ИНН ${inn}, название "${companyName}", регион "${region}".
+ВКЛЮЧАЙ только персон, чьи источники:
+  – НА СТРАНИЦЕ явно содержат тот же ИНН ${inn}; ИЛИ
+  – размещены на официальном домене ${sourceDomain} ИЛИ в реестрах: egrul.nalog.ru, nalog.ru, rusprofile.ru, sbis.ru, kontur.ru, spark-interfax.ru.
+ИГНОРИРУЙ одноимённые компании с иным ИНН.
+Верни 3–6 записей:
+{"people":[{"full_name":"...","role_title":"...","sources":[{"label":"...","url":"https://...","date":"YYYY-MM-DD"}]}]}`;
 
     async function call(withTool: boolean) {
       const resp = await client.responses.create({
