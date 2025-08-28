@@ -1,12 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
 
-export type Candidate = { name: string; region?: string; okved?: string; inn: string; source: string };
-export type Person = { full_name: string; role_title: string; sources: { label?: string; url: string; date?: string }[] };
-
-type Screen = "s1-input" | "s1-choose" | "s2-people" | "s3-profiles";
-
-// helpers (module-scope) — доступны и в Page, и в DetailPanel
 function domainFromUrl(url?: string) {
   try {
     if (!url) return "—";
@@ -16,6 +10,11 @@ function domainFromUrl(url?: string) {
     return url || "—";
   }
 }
+
+export type Candidate = { name: string; region?: string; okved?: string; inn: string; source: string };
+export type Person = { full_name: string; role_title: string; sources: { label?: string; url: string; date?: string }[] };
+
+type Screen = "s1-input" | "s1-choose" | "s2-people" | "s3-profiles";
 
 // light MD to HTML (for already validated text)
 function mdToHtml(md: string) {
